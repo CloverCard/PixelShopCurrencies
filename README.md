@@ -152,7 +152,13 @@ Now that the items have been registered, all you need to do is add them to a sho
 Once you've saved the json files you've edited, all you need to do is zip up all the files into a proper datapack, and add it to your server's datapack folder.
 
 ### 5.) Boot Up your Server.
-At this point, you're good to go. If you haven't created a scoreboard before, here is an example of creating the vp currency used in the example
+At this point, you're good to go. 
 
-/scoreboard objectives add vp dummy
+- If you haven't created a scoreboard before, here is an example of creating the vp currency used in the example
+  - /scoreboard objectives add vp dummy
+
+- To add to a player's score, here is another example:
+  - /scoreboard players add CloverCard vp 10
+
+
 
