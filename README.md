@@ -8,7 +8,7 @@ Displays your current balance of a particular scoreboard currency. In the event 
 ## Set Up and Configuration
 ### 1.) Download the Mod
 You'll need to get the [latest release](https://github.com/CloverCard/PixelShopCurrencies/releases) and place it within your mods folder.
-### 2.) Create the file structure for a Datapack that modifies shopkeepers and shopkeeper items or modify the example provided.
+### 2.) Create the file structure for a Datapack that modifies shopkeepers and shopkeeper items or modify the [example provided](https://github.com/CloverCard/PixelShopCurrencies/blob/master/PixelShopCurrency-Example/PixelShopCurrency-Example.zip).
 ### 3.) Configure Shopkeeper Items
 In order to make an item require a special currency, you'll need to give it the correct nbt tags via a datapack in the shopitems.json file. The three tags to be aware of are clovercost, clovercur, and clovercmd. 
 
@@ -153,3 +153,5 @@ Once you've saved the json files you've edited, all you need to do is zip up all
 
 ### 5.) Boot Up your Server.
 At this point, you're good to go.
+![image](https://user-images.githubusercontent.com/121761085/210184299-63a76b6d-a0cb-4559-8842-39e5e17dd6c3.png)
+
