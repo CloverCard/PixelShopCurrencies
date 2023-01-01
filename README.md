@@ -1,6 +1,6 @@
 # PixelShopCurrencies
 This is a Pixelmon Reforged server-sided sidemod that implements scoreboard custom currencies for shopkeepers, allowing the purchases of items and command uses.
-
+![image](https://user-images.githubusercontent.com/121761085/210184299-63a76b6d-a0cb-4559-8842-39e5e17dd6c3.png)
 ## Commands
 ### /clbal <currency_id>
 Displays your current balance of a particular scoreboard currency. In the event this currency does not exist, you'll be informed by the error message.
@@ -152,6 +152,7 @@ Now that the items have been registered, all you need to do is add them to a sho
 Once you've saved the json files you've edited, all you need to do is zip up all the files into a proper datapack, and add it to your server's datapack folder.
 
 ### 5.) Boot Up your Server.
-At this point, you're good to go.
-![image](https://user-images.githubusercontent.com/121761085/210184299-63a76b6d-a0cb-4559-8842-39e5e17dd6c3.png)
+At this point, you're good to go. If you haven't created a scoreboard before, here is an example of creating the vp curreny used in the example
+
+/scoreboard objectives add vp dummy
 
