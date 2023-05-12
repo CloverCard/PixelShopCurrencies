@@ -74,26 +74,23 @@ public class BoughtFromShopEvent {
     }
 
     public void handleCommandPurchase(CompoundNBT nbt, ServerPlayerEntity player, int count) {
-        StringBuilder cmd = new StringBuilder(nbt.getString("clovercmd"));
-        String[] split = cmd.toString().split(" ");
-        cmd = new StringBuilder();
+        String cmd = nbt.getString("clovercmd");
+        String[] split = cmd.split(" ");
         //Handle PLAYER placeholder.
-        for (int i = 1; i < split.length; i++) {
-            if (split[i].contains("PLAYER")) {
-                split[i] = split[i].replace("PLAYER", player.getName().getContents());
-            }
-            cmd.append(split[i]).append(" ");
-        }
+        cmd = cmd.replaceAll("PLAYER", player.getName().getString());
         MinecraftServer world = player.getServer();
         //Handle who/what runs the command.
         if (Objects.equals(split[0], "console")) {
             assert world != null;
-            for (int i = 0; i < count; i++)
-                world.getCommands().performCommand(world.createCommandSourceStack(), cmd.toString());
+            cmd = cmd.replaceAll("console ", "");
+            for (int i = 0; i < count; i++) {
+                world.getCommands().performCommand(world.createCommandSourceStack(), cmd);
+            }
         } else if (Objects.equals(split[0], "self")) {
             assert world != null;
+            cmd = cmd.replaceAll("self ", "");
             for (int i = 0; i < count; i++)
-                world.getCommands().performCommand(player.createCommandSourceStack(), cmd.toString());
+                world.getCommands().performCommand(player.createCommandSourceStack(), cmd);
         }
     }
 }
