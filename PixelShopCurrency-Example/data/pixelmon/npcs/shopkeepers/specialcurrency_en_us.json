@@ -1,0 +1,91 @@
+{
+  "data": {
+    "type": "SpecialCurrency"
+  },
+  "textures": [
+    {
+      "name": "shopman2.png"
+    },
+    {
+      "name": "shopman.png"
+    },
+    {
+      "name": "shopman3.png"
+    },
+    {
+      "name": "shopman4.png"
+    },
+    {
+      "name": "shopman5.png"
+    }
+  ],
+  "names": [
+    {
+      "name": "Charles"
+    },
+    {
+      "name": "Eito"
+    },
+    {
+      "name": "Mr. Benson"
+    },
+    {
+      "name": "Mr. Wong"
+    },
+    {
+      "name": "James"
+    },
+    {
+      "name": "Digby"
+    }
+  ],
+  "chat": [
+    {
+      "hello": "Welcome to my Poké Mart. I hope you find something you like!",
+      "goodbye": "See you next time."
+    },
+    {
+      "hello": "Hello, welcome to the Poké Mart. How may I help you?",
+      "goodbye": "Thank you for shopping at the Poké Mart. Have a nice day."
+    },
+    {
+      "hello": "Hello there! Welcome to my Poké Mart. I have only the best Pokémon products for sale.",
+      "goodbye": "Thank you for shopping at my store."
+    },
+    {
+      "hello": "Welcome to my Poké Mart. Nice day for shopping, isn't it?",
+      "goodbye": "Come back soon, won't you?"
+    },
+    {
+      "hello": "Hello there, welcome to the Poké Mart! We have many specials today!",
+      "goodbye": "Come see us again, won't you?"
+    },
+    {
+      "hello": "Hey there, welcome to the Poké Mart. Looking for anything special?",
+      "goodbye": "Okay, see ya next time."
+    },
+    {
+      "hello": "How are you? Welcome to our Poké Mart! We've got some great gear for your Pokémon.",
+      "goodbye": "Ciao, my friend. Come back anytime."
+    },
+    {
+      "hello": "Hello, check out our Poké Mart! We have some useful Pokémon gear today.",
+      "goodbye": "Come back again soon, okay?"
+    },
+    {
+      "hello": "Hi, looking for the best Poké Mart? Well, you just found it!",
+      "goodbye": "Leaving so soon? Well, make sure you come back even sooner!"
+    }
+  ],
+  "items": [
+    {
+      "name": "Test"
+    },
+    {
+      "name": "Test2"
+    },
+    {
+      "name": "Test3"
+    }
+  ]
+}
