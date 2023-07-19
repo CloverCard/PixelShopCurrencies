@@ -1,11 +1,16 @@
 package com.clovercard.pixelshopcurrencies.listeners;
 
+import com.pixelmonmod.pixelmon.api.economy.BankAccount;
+import com.pixelmonmod.pixelmon.api.economy.BankAccountProxy;
 import com.pixelmonmod.pixelmon.api.events.ShopkeeperEvent;
 import com.pixelmonmod.pixelmon.api.util.helpers.ResourceLocationHelper;
+import com.pixelmonmod.pixelmon.entities.npcs.registry.BaseShopItem;
+import com.pixelmonmod.pixelmon.entities.npcs.registry.ServerNPCRegistry;
+import com.pixelmonmod.pixelmon.entities.npcs.registry.ShopItem;
+import com.pixelmonmod.pixelmon.entities.npcs.registry.ShopItemWithVariation;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.nbt.*;
 import net.minecraft.scoreboard.Score;
 import net.minecraft.scoreboard.ScoreObjective;
@@ -20,24 +25,21 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.server.ServerLifecycleHooks;
 import net.minecraftforge.registries.ForgeRegistries;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class BoughtFromShopEvent {
     /*
      * This listener will observe all store purchases.
      * If in the config the item has the NBT tags: clovercur, clovercost, it will treat it as special currency.
-     * If in the config the item has the NBT tags: cloveritemcur, it will treat it as an item currency
-     * All three combined will expect costs to require both types.
+     * If in the config the item has the NBT tags: cloveritemcur and cloveritemcost, it will treat it as an item currency
+     * All four combined will expect costs to require both types.
      * With the addition of the clovercmd tag, it will treat it not as an item, but as a command to be run.
      */
     @SubscribeEvent
     public void onShopPurchase(ShopkeeperEvent.Purchase e) {
         CompoundNBT nbt = e.getItem().getTag();
-        if(nbt == null) return;
         ServerScoreboard board = ServerLifecycleHooks.getCurrentServer().getScoreboard();
+        BaseShopItem shopItem = ServerNPCRegistry.shopkeepers.getItem(e.getItem());
         if (validateItemCurrencyNbt(nbt) && validateNbt(nbt)) {
             ScoreObjective curr = board.getObjective(nbt.getString("clovercur"));
             //Check if special currency is valid
@@ -118,6 +120,15 @@ public class BoughtFromShopEvent {
                 }
                 toRemoveItems.forEach(removed -> e.getEntityPlayer().inventory.removeItem(removed));
             }
+            BankAccount account = BankAccountProxy.getBankAccount(e.getEntityPlayer()).orElse(null);
+            if(account != null) {
+                if(shopItem != null) {
+                    ShopItemWithVariation shopItemVar = new ShopItemWithVariation(new ShopItem(shopItem, 1 ,1, false));
+                    //Get Cost Data
+                    float cost = shopItemVar.getBuyCost() * e.getItem().getCount();
+                    account.take(cost);
+                }
+            }
             //Handle command purchases
             if (nbt.contains("clovercmd")) {
                 handleCommandPurchase(nbt, e.getEntityPlayer(), e.getItem().getCount());
@@ -135,7 +146,7 @@ public class BoughtFromShopEvent {
             StringTextComponent balMsg = new StringTextComponent("Your new balance: " + bal.getScore() + " " + curr.getName());
             balMsg.setStyle(balMsg.getStyle().applyFormat(TextFormatting.BOLD));
             e.getEntityPlayer().sendMessage(balMsg, ChatType.GAME_INFO, Util.NIL_UUID);
-            e.setItem(new ItemStack(Items.AIR, 1));
+            e.setCanceled(true);
         }
         //Check if NBT data is valid for special currency.
         else if (validateNbt(nbt)) {
@@ -151,6 +162,15 @@ public class BoughtFromShopEvent {
                 if (bal.getScore() >= (cost * e.getItem().getCount())) {
                     //Remove cost from player balance
                     bal.setScore(bal.getScore() - (cost * e.getItem().getCount()));
+                    BankAccount account = BankAccountProxy.getBankAccount(e.getEntityPlayer()).orElse(null);
+                    if(account != null) {
+                        if(shopItem != null) {
+                            ShopItemWithVariation shopItemVar = new ShopItemWithVariation(new ShopItem(shopItem, 1 ,1, false));
+                            //Get Cost Data
+                            float price = shopItemVar.getBuyCost() * e.getItem().getCount();
+                            account.take(price);
+                        }
+                    }
                     //Handle command purchases
                     if (nbt.contains("clovercmd")) {
                         handleCommandPurchase(nbt, e.getEntityPlayer(), e.getItem().getCount());
@@ -174,7 +194,7 @@ public class BoughtFromShopEvent {
                     e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
                 }
             }
-            e.setItem(new ItemStack(Items.AIR, 1));
+            e.setCanceled(true);
         } else if (validateItemCurrencyNbt(nbt)) {
             HashMap<String, Integer> itemPrices = handleItemCurrencies(nbt);
             boolean cancelPurchase = false;
@@ -234,13 +254,22 @@ public class BoughtFromShopEvent {
                 }
                 toRemoveItems.forEach(removed -> e.getEntityPlayer().inventory.removeItem(removed));
             }
+            BankAccount account = BankAccountProxy.getBankAccount(e.getEntityPlayer()).orElse(null);
+            if(account != null) {
+                if(shopItem != null) {
+                    ShopItemWithVariation shopItemVar = new ShopItemWithVariation(new ShopItem(shopItem, 1 ,1, false));
+                    //Get Cost Data
+                    float cost = shopItemVar.getBuyCost() * e.getItem().getCount();
+                    System.out.println(cost);
+                    account.take(cost);
+                }
+            }
             //Give reward
             if (nbt.contains("clovercmd")) {
                 handleCommandPurchase(nbt, e.getEntityPlayer(), e.getItem().getCount());
             } else {
                 nbt.remove("display");
                 nbt.remove("cloveritemcur");
-                nbt.remove("cloveritemcost");
                 e.getEntityPlayer().inventory.add(e.getItem());
             }
         } else {
@@ -248,7 +277,7 @@ public class BoughtFromShopEvent {
             errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
             e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
         }
-        e.setItem(new ItemStack(Items.AIR, 1));
+        e.setCanceled(true);
     }
 
     public boolean validateNbt(CompoundNBT nbt) {
