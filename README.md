@@ -16,6 +16,8 @@ In order to make an item require a special currency, you'll need to give it the 
 
 - clovercost: This is an integer and will hold how much of the scoreboard currency the item will cost.
 
+- cloveritemcur: This is a list containing objects which each individually have two fields: name and cost. The name is the item's id and the cost is how much of that item are required to make the purchase. You can place multiple objects within this list to increase the type of items that are required to make a purchase.
+
 - clovercmd (optional): This is a string value that will hold the data for the command a player is purchasing. Keep in mind that including this tag will change the thing sold from an item to a command.
 
   - The first argument of the string must either be self or console. This will determine whether the command will be run as the player or the console.
@@ -24,7 +26,7 @@ In order to make an item require a special currency, you'll need to give it the 
 
   - If you would like to use the name of the player who purchased the command anywhere in the arguments, substitute it with PLAYER, and the player's name will be used when the command runs.
 
-**Below are three examples of how to configure items using a scoreboard currency I named vp.**
+**Below are three examples of how to configure items. For scoreboard currency, I used one called vp.**
 (Keep in mind that any display data you provide will be removed once you obtain the item!) 
 ```json
 {
@@ -32,22 +34,22 @@ In order to make an item require a special currency, you'll need to give it the 
     {
       "id": "Test",
       "name": "pixelmon:master_ball",
-      "nbtData": "{clovercost:5, clovercur:\"vp\", display:{\"Name\":'{\"text\":\"Master Ball - 5 VP\"}'}}",
-      "buy": 0,
+      "nbtData": "{cloveritemcur:[{\"name\":\"minecraft:gold_ingot\", \"cost\": 5}, {\"name\":\"minecraft:iron_ingot\", \"cost\": 5}], display:{\"Name\":'{\"text\":\"Master Ball - 5 Iron and 5 Gold\"}'}}",
+      "buy": 1000,
       "sell": 0
     },
     {
       "id": "Test2",
       "name": "pixelmon:master_ball",
-      "nbtData": "{clovercost:5, clovercur:\"vp\", clovercmd:\"self say hello PLAYER!\", display:{\"Name\":'{\"text\":\"Greeting command - 5 VP\"}'}}",
-      "buy": 0,
+      "nbtData": "{cloveritemcur:[{\"name\":\"minecraft:gold_ingot\", \"cost\": 5}, {\"name\":\"minecraft:iron_ingot\", \"cost\": 5}], clovercost:5, clovercur:\"vp\", clovercmd:\"self say hello PLAYER!\", display:{\"Name\":'{\"text\":\"Greeting command - 5 VP and 5 Iron and 5 Gold\"}'}}",
+      "buy": 500,
       "sell": 0
     },
     {
       "id": "Test3",
       "name": "pixelmon:master_ball",
-      "nbtData": "{clovercost:1, clovercur:\"vp\", clovercmd:\"console pokegive PLAYER Bidoof\", display:{\"Name\":'{\"text\":\"Get Bidoof - 1 VP\"}'}}",
-      "buy": 0,
+      "nbtData": "{clovercost:1, clovercur:\"vp\", clovercmd:\"pokegive PLAYER bidoof\", display:{\"Name\":'{\"text\":\"Get Bidoof - 1 VP\"}'}}",
+      "buy": 10,
       "sell": 0
     }
   ]
