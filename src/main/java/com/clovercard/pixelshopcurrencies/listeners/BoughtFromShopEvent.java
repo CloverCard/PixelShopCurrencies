@@ -1,9 +1,12 @@
 package com.clovercard.pixelshopcurrencies.listeners;
 
 import com.pixelmonmod.pixelmon.api.events.ShopkeeperEvent;
+import com.pixelmonmod.pixelmon.api.util.helpers.ResourceLocationHelper;
 import net.minecraft.entity.player.ServerPlayerEntity;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.nbt.IntNBT;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.nbt.*;
 import net.minecraft.scoreboard.Score;
 import net.minecraft.scoreboard.ScoreObjective;
 import net.minecraft.scoreboard.ServerScoreboard;
@@ -12,28 +15,135 @@ import net.minecraft.util.Util;
 import net.minecraft.util.text.ChatType;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.server.ServerLifecycleHooks;
+import net.minecraftforge.registries.ForgeRegistries;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class BoughtFromShopEvent {
     /*
-    * This listener will observe all store purchases.
-    * If in the config the item has the NBT tags: clovercur and clovercost, it will treat it as special currency.
-    * With the addition of the clovercmd tag, it will treat it not as an item, but as a command to be run.
-    */
+     * This listener will observe all store purchases.
+     * If in the config the item has the NBT tags: clovercur, clovercost, it will treat it as special currency.
+     * If in the config the item has the NBT tags: cloveritemcur, it will treat it as an item currency
+     * All three combined will expect costs to require both types.
+     * With the addition of the clovercmd tag, it will treat it not as an item, but as a command to be run.
+     */
     @SubscribeEvent
-    public void onShopPurchase(ShopkeeperEvent.Purchase e){
+    public void onShopPurchase(ShopkeeperEvent.Purchase e) {
         CompoundNBT nbt = e.getItem().getTag();
+        if(nbt == null) return;
         ServerScoreboard board = ServerLifecycleHooks.getCurrentServer().getScoreboard();
+        if (validateItemCurrencyNbt(nbt) && validateNbt(nbt)) {
+            ScoreObjective curr = board.getObjective(nbt.getString("clovercur"));
+            //Check if special currency is valid
+            if (Objects.isNull(curr)) {
+                StringTextComponent errMsg = new StringTextComponent("The admin(s) of this server have not created a currency called " + nbt.getString("clovercur") + "!");
+                errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
+                e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
+                e.setCanceled(true);
+                return;
+            }
+            //Check if player has the item currency and has enough
+            HashMap<String, Integer> itemPrices = handleItemCurrencies(nbt);
+            boolean cancelPurchase = false;
+            for (Map.Entry<String, Integer> itemCur : itemPrices.entrySet()) {
+                Item item = ForgeRegistries.ITEMS.getValue(ResourceLocationHelper.of(itemCur.getKey()));
+                if (item == null) {
+                    StringTextComponent errMsg = new StringTextComponent("Cannot find " + itemCur.getKey() + " within registry!");
+                    errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
+                    e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
+                    cancelPurchase = true;
+                    break;
+                }
+                int count = 0;
+                //Get player's item balance
+                for (ItemStack itemstack : e.getEntityPlayer().inventory.items) {
+                    if (itemstack.getItem().equals(item)) {
+                        count += itemstack.getCount();
+                    }
+                }
+                if (count < itemCur.getValue() * e.getItem().getCount()) {
+                    StringTextComponent errMsg = new StringTextComponent("You do not have enough " + itemCur.getKey() + " to purchase this item!");
+                    errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
+                    e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
+                    cancelPurchase = true;
+                    break;
+                }
+            }
+            if (cancelPurchase) {
+                e.setCanceled(true);
+                return;
+            }
+            //Get special currency prices
+            Score bal = board.getOrCreatePlayerScore(e.getEntityPlayer().getName().getString(), curr);
+            int pCost = ((IntNBT) Objects.requireNonNull(nbt.get("clovercost"))).getAsInt();
+            //Check if player has enough special currency
+            if (bal.getScore() < (pCost * e.getItem().getCount())) {
+                StringTextComponent errMsg = new StringTextComponent("You do not have enough to purchase this!");
+                errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
+                e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
+                return;
+            }
+            //Remove special currency from player balance
+            bal.setScore(bal.getScore() - (pCost * e.getItem().getCount()));
+            //Remove items
+            for (Map.Entry<String, Integer> itemCur : itemPrices.entrySet()) {
+                Item item = ForgeRegistries.ITEMS.getValue(ResourceLocationHelper.of(itemCur.getKey()));
+                int count = 0;
+                //Get player's item balance
+                for (ItemStack itemstack : e.getEntityPlayer().inventory.items) {
+                    if (itemstack.getItem().equals(item)) {
+                        count += itemstack.getCount();
+                    }
+                }
+                int total = itemCur.getValue() * e.getItem().getCount();
+                ArrayList<ItemStack> toRemoveItems = new ArrayList<>();
+                //Remove item from inventory
+                for (ItemStack itemStack : e.getEntityPlayer().inventory.items) {
+                    if (itemStack.getItem().equals(item)) {
+                        int stackCount = itemStack.getCount();
+                        if (stackCount <= total) {
+                            total -= stackCount;
+                            toRemoveItems.add(itemStack);
+                        } else {
+                            itemStack.shrink(total);
+                            break;
+                        }
+                    }
+                }
+                toRemoveItems.forEach(removed -> e.getEntityPlayer().inventory.removeItem(removed));
+            }
+            //Handle command purchases
+            if (nbt.contains("clovercmd")) {
+                handleCommandPurchase(nbt, e.getEntityPlayer(), e.getItem().getCount());
+            }
+            //Handle item purchases
+            else {
+                nbt.remove("display");
+                nbt.remove("cloveritemcur");
+                nbt.remove("cloveritemcost");
+                nbt.remove("clovercost");
+                nbt.remove("clovercur");
+                e.getEntityPlayer().inventory.add(e.getItem());
+            }
+            //Inform player of their new balance
+            StringTextComponent balMsg = new StringTextComponent("Your new balance: " + bal.getScore() + " " + curr.getName());
+            balMsg.setStyle(balMsg.getStyle().applyFormat(TextFormatting.BOLD));
+            e.getEntityPlayer().sendMessage(balMsg, ChatType.GAME_INFO, Util.NIL_UUID);
+            e.setItem(new ItemStack(Items.AIR, 1));
+        }
         //Check if NBT data is valid for special currency.
-        if(validateNbt(nbt)) {
+        else if (validateNbt(nbt)) {
             ScoreObjective curr = board.getObjective(nbt.getString("clovercur"));
             //Handle invalid currency
             if (Objects.isNull(curr))
                 e.getEntityPlayer().sendMessage(new StringTextComponent("The admin(s) of this server have not created a currency called " + nbt.getString("clovercur") + "!"), ChatType.GAME_INFO, Util.NIL_UUID);
-            //Handle valid currency
+                //Handle valid currency
             else {
                 Score bal = board.getOrCreatePlayerScore(e.getEntityPlayer().getName().getString(), curr);
                 int cost = ((IntNBT) Objects.requireNonNull(nbt.get("clovercost"))).getAsInt();
@@ -64,13 +174,93 @@ public class BoughtFromShopEvent {
                     e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
                 }
             }
-            e.setCanceled(true);
+            e.setItem(new ItemStack(Items.AIR, 1));
+        } else if (validateItemCurrencyNbt(nbt)) {
+            HashMap<String, Integer> itemPrices = handleItemCurrencies(nbt);
+            boolean cancelPurchase = false;
+            //Check if player has the item currency and has enough
+            for (Map.Entry<String, Integer> itemCur : itemPrices.entrySet()) {
+                Item item = ForgeRegistries.ITEMS.getValue(ResourceLocationHelper.of(itemCur.getKey()));
+                if (item == null) {
+                    StringTextComponent errMsg = new StringTextComponent("Cannot find " + itemCur.getKey() + " within registry!");
+                    errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
+                    e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
+                    cancelPurchase = true;
+                    break;
+                }
+                int count = 0;
+                //Get player's item balance
+                for (ItemStack itemstack : e.getEntityPlayer().inventory.items) {
+                    if (itemstack.getItem().equals(item)) {
+                        count += itemstack.getCount();
+                    }
+                }
+                if (count < itemCur.getValue() * e.getItem().getCount()) {
+                    StringTextComponent errMsg = new StringTextComponent("You do not have enough " + itemCur.getKey() + " to purchase this item!");
+                    errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
+                    e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
+                    cancelPurchase = true;
+                    break;
+                }
+            }
+            if (cancelPurchase) {
+                e.setCanceled(true);
+                return;
+            }
+            //Remove items
+            for (Map.Entry<String, Integer> itemCur : itemPrices.entrySet()) {
+                Item item = ForgeRegistries.ITEMS.getValue(ResourceLocationHelper.of(itemCur.getKey()));
+                int count = 0;
+                //Get player's item balance
+                for (ItemStack itemstack : e.getEntityPlayer().inventory.items) {
+                    if (itemstack.getItem().equals(item)) {
+                        count += itemstack.getCount();
+                    }
+                }
+                int total = itemCur.getValue() * e.getItem().getCount();
+                ArrayList<ItemStack> toRemoveItems = new ArrayList<>();
+                //Remove item from inventory
+                for (ItemStack itemStack : e.getEntityPlayer().inventory.items) {
+                    if (itemStack.getItem().equals(item)) {
+                        int stackCount = itemStack.getCount();
+                        if (stackCount <= total) {
+                            total -= stackCount;
+                            toRemoveItems.add(itemStack);
+                        } else {
+                            itemStack.shrink(total);
+                            break;
+                        }
+                    }
+                }
+                toRemoveItems.forEach(removed -> e.getEntityPlayer().inventory.removeItem(removed));
+            }
+            //Give reward
+            if (nbt.contains("clovercmd")) {
+                handleCommandPurchase(nbt, e.getEntityPlayer(), e.getItem().getCount());
+            } else {
+                nbt.remove("display");
+                nbt.remove("cloveritemcur");
+                nbt.remove("cloveritemcost");
+                e.getEntityPlayer().inventory.add(e.getItem());
+            }
+        } else {
+            StringTextComponent errMsg = new StringTextComponent("You do not have enough to purchase this!");
+            errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
+            e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
         }
+        e.setItem(new ItemStack(Items.AIR, 1));
     }
+
     public boolean validateNbt(CompoundNBT nbt) {
-        if(Objects.isNull(nbt)){
+        if (Objects.isNull(nbt)) {
             return false;
         } else return nbt.contains("clovercur") && nbt.contains("clovercost");
+    }
+
+    public boolean validateItemCurrencyNbt(CompoundNBT nbt) {
+        if (Objects.isNull(nbt)) {
+            return false;
+        } else return nbt.contains("cloveritemcur");
     }
 
     public void handleCommandPurchase(CompoundNBT nbt, ServerPlayerEntity player, int count) {
@@ -92,5 +282,20 @@ public class BoughtFromShopEvent {
             for (int i = 0; i < count; i++)
                 world.getCommands().performCommand(player.createCommandSourceStack(), cmd);
         }
+    }
+
+    public HashMap<String, Integer> handleItemCurrencies(CompoundNBT nbt) {
+        HashMap<String, Integer> shopPrices = new HashMap<>();
+        ListNBT itemCurs = nbt.getList("cloveritemcur", Constants.NBT.TAG_COMPOUND);
+        for (INBT itemCur : itemCurs) {
+            if (itemCur instanceof CompoundNBT) {
+                if (((CompoundNBT) itemCur).contains("name") || ((CompoundNBT) itemCur).contains("cost")) {
+                    String name = ((CompoundNBT) itemCur).getString("name");
+                    int cost = ((CompoundNBT) itemCur).getInt("cost");
+                    shopPrices.put(name, cost);
+                }
+            }
+        }
+        return shopPrices;
     }
 }
