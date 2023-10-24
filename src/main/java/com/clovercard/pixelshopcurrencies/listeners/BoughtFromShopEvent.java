@@ -272,12 +272,8 @@ public class BoughtFromShopEvent {
                 nbt.remove("cloveritemcur");
                 e.getEntityPlayer().inventory.add(e.getItem());
             }
-        } else {
-            StringTextComponent errMsg = new StringTextComponent("You do not have enough to purchase this!");
-            errMsg.setStyle(errMsg.getStyle().applyFormats(TextFormatting.DARK_RED, TextFormatting.BOLD));
-            e.getEntityPlayer().sendMessage(errMsg, ChatType.GAME_INFO, Util.NIL_UUID);
+            e.setCanceled(true);
         }
-        e.setCanceled(true);
     }
 
     public boolean validateNbt(CompoundNBT nbt) {
